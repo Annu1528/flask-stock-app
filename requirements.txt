@@ -38,3 +38,5 @@ tzdata==2025.2
 urllib3==2.4.0
 yfinance==0.2.55
 gunicorn
+Flask==2.2.5
+yfinance==0.2.55
