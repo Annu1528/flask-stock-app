@@ -23,4 +23,7 @@ def download():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))  # Use the PORT from the environment or default to 5000
     app.run(host="0.0.0.0", port=port, debug=True)  # Make sure app runs with the correct host and port
+@app.route("/healthz")
+def healthz():
+    return "OK", 200
 
