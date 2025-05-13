@@ -45,11 +45,11 @@ st.write(f"R-squared Score: {round(r2, 4)}")
 # Fetch the most recent stock data for prediction
 latest_data = yf.download('AAPL', period='1d', interval='1h')
 
-# Select the features used during training
-latest_features = latest_data[['Open', 'High', 'Low', 'Volume']].values
+# Ensure that the required columns ('Open', 'High', 'Low', 'Volume') are present
+latest_data = latest_data[['Open', 'High', 'Low', 'Volume']]
 
 # Scale the features using the same scaler as during training
-latest_scaled = scaler.transform(latest_features)
+latest_scaled = scaler.fit_transform(latest_data)
 
 # Make prediction using the trained model
 future_price = model.predict(latest_scaled)
@@ -60,5 +60,6 @@ future_price = scaler.inverse_transform(future_price)
 # Display the prediction
 st.subheader("Next Hour's Stock Price Prediction:")
 st.write(f"Predicted Price: ${round(float(future_price[-1][0]), 2)}")
+
 
 
