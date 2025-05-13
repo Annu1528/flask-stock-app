@@ -1,4 +1,4 @@
-import streamlit as st
+from flask import Flask, jsonify
 import pandas as pd
 import yfinance as yf
 from sklearn.model_selection import train_test_split
@@ -6,51 +6,65 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score
 
-st.title("📈 Stock Price Prediction")
+app = Flask(__name__)
 
-# Get stock data
-stock_data = yf.download('AAPL', start='2010-01-01', end='2025-04-23')
-stock_data.ffill(inplace=True)
+@app.route('/')
+def home():
+    return "Hello, Flask is running successfully!"
 
-# Display stock data
-st.subheader("Stock Data (First 5 rows)")
-st.write(stock_data.head())
+@app.route('/predict')
+def predict():
+    # Download stock data for training
+    stock_data = yf.download('AAPL', start='2010-01-01', end='2025-04-23')
+    stock_data.ffill(inplace=True)
 
-# Scaling the 'Close' price for the model
-scaler = MinMaxScaler()
-stock_data['Close'] = scaler.fit_transform(stock_data[['Close']])
+    # Scale the 'Close' price
+    scaler = MinMaxScaler()
+    stock_data['Close'] = scaler.fit_transform(stock_data[['Close']])
+    
+    # Define features and target variable
+    X = stock_data[['Open', 'High', 'Low', 'Volume']].values
+    y = stock_data['Close'].values.reshape(-1, 1)
+    
+    # Split data into training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Train the model
+    model = LinearRegression()
+    model.fit(X_train, y_train)
 
-# Feature engineering for training the model
-X = stock_data[['Open', 'High', 'Low', 'Volume']].values
-y = stock_data['Close'].values.reshape(-1, 1)
+    # Predictions
+    y_pred = model.predict(X_test)
+    y_test_actual = scaler.inverse_transform(y_test)
+    y_pred_actual = scaler.inverse_transform(y_pred)
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Calculate performance metrics
+    mse = mean_squared_error(y_test_actual, y_pred_actual)
+    r2 = r2_score(y_test_actual, y_pred_actual)
 
-# Linear regression model
-model = LinearRegression()
-model.fit(X_train, y_train)
+    # Fetch the most recent stock data for prediction
+    latest_data = yf.download('AAPL', period='1d', interval='1h')
 
-# Predictions
-y_pred = model.predict(X_test)
-y_test_actual = scaler.inverse_transform(y_test)
-y_pred_actual = scaler.inverse_transform(y_pred)
+    # Select the features used during training
+    latest_features = latest_data[['Open', 'High', 'Low', 'Volume']].values
 
-# Calculate metrics
-mse = mean_squared_error(y_test_actual, y_pred_actual)
-r2 = r2_score(y_test_actual, y_pred_actual)
+    # Scale the features using the same scaler as during training
+    latest_scaled = scaler.transform(latest_features)
 
-# Display metrics
-st.subheader("Model Metrics")
-st.write(f"Mean Squared Error: {round(mse, 6)}")
-st.write(f"R2 Score: {round(r2, 4)}")
+    # Make prediction using the trained model
+    future_price = model.predict(latest_scaled)
 
-# Predict next hour's stock price
-latest_data = yf.download('AAPL', period='1d', interval='1h')
-latest_scaled = scaler.transform(latest_data[['Close']])
-future_price = model.predict(latest_scaled)
-future_price = scaler.inverse_transform(future_price)
+    # Reverse the scaling of the predicted price
+    future_price = scaler.inverse_transform(future_price)
 
-# Display next hour prediction
-st.subheader("Next Hour Price Prediction")
-st.write(f"Predicted Next Hour Stock Price: {round(float(future_price[-1][0]), 2)}")
+    # Return the results as a JSON response
+    return jsonify({
+        "mean_squared_error": round(mse, 6),
+        "r2_score": round(r2, 4),
+        "next_hour_price_prediction": round(float(future_price[-1][0]), 2)
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
