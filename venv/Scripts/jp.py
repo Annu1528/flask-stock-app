@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #!C:\Users\kunal\OneDrive\Desktop\ML project 1\venv\Scripts\python.exe
+=======
+#!C:\flask-eb-app\venv\Scripts\python.exe
+>>>>>>> 2c8ff1af02fbab377b4b0104a2f92d9804118945
 
 import sys
 import json
