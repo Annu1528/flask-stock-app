@@ -52,6 +52,9 @@ def plot_bar_with_extremes(stock_data, stock_symbol):
 
     # Calculate daily price differences safely
     diff = close_prices.diff().fillna(0)
+    if not isinstance(diff, pd.Series):
+     diff = pd.Series(diff)
+
     diff = pd.to_numeric(diff, errors='coerce').fillna(0)
 
     # Colors for bars: green if price up/same, red if down
