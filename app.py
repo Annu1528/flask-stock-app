@@ -1,107 +1,156 @@
 import streamlit as st
+import yfinance as yf
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import yfinance as yf
+import altair as alt
 from datetime import date, timedelta
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
 
-st.title("Stock Price Analysis with Peak/Trough Bars and Forecast")
+st.set_page_config(page_title="Stock Price Prediction App", layout="wide")
 
-# Function to plot bars with peak/trough annotations
-def plot_bar_with_extremes(close_series):
-    # Ensure the series is sorted by date
-    close_series = close_series.sort_index()
+# Sidebar inputs
+st.sidebar.header("Configuration")
+ticker = st.sidebar.text_input("Ticker (e.g. AAPL)", value="AAPL")
+start_date = st.sidebar.date_input("Start Date", value=date.today() - timedelta(days=365))
+end_date = st.sidebar.date_input("End Date", value=date.today())
+interval = st.sidebar.selectbox("Prediction Interval", ["Hourly", "Daily", "Monthly"], index=1)
 
-    # Compute 1-day differences; ensure numeric (1D) and fill NaNs
-    diff = close_series.diff()
-    diff = pd.to_numeric(diff, errors='coerce').fillna(0)
+if start_date >= end_date:
+    st.sidebar.error("Start date must be before end date")
+    st.stop()
 
-    # Assign colors: green for positive diff, red for zero/negative
-    colors = ['green' if val > 0 else 'red' for val in diff]
+# Fetch stock data
+data_load_state = st.text('Loading data...')
+yf_interval = '1d'
+if interval == "Hourly":
+    yf_interval = '60m'
+elif interval == "Monthly":
+    yf_interval = '1mo'
 
-    # Create bar chart
-    fig, ax = plt.subplots()
-    ax.bar(range(len(close_series)), close_series, color=colors)
+try:
+    df = yf.download(ticker, start=start_date, end=end_date + timedelta(days=1), interval=yf_interval, progress=False)
+except Exception as e:
+    st.error(f"Error fetching data: {e}")
+    st.stop()
 
-    # Find index and values of peak and trough
-    values = close_series.values
-    if len(values) == 0:
-        return fig  # nothing to plot
-    max_idx = np.argmax(values)
-    min_idx = np.argmin(values)
-    max_val = values[max_idx]
-    min_val = values[min_idx]
-    offset = (max_val - min_val) * 0.05 if max_val != min_val else 0.1
+data_load_state.text('')
 
-    # Annotate Peak (highest value)
-    ax.annotate(f"Peak: {max_val:.2f}",
-                xy=(max_idx, max_val), xytext=(max_idx, max_val + offset),
-                ha='center', color='green',
-                arrowprops=dict(facecolor='green', arrowstyle='->'))
+if df is None or df.empty:
+    st.error("No data found for the given ticker and date range.")
+    st.stop()
 
-    # Annotate Trough (lowest value)
-    ax.annotate(f"Trough: {min_val:.2f}",
-                xy=(min_idx, min_val), xytext=(min_idx, min_val + offset),
-                ha='center', color='red',
-                arrowprops=dict(facecolor='red', arrowstyle='->'))
+# Ensure 'Close' column exists and is numeric
+if 'Close' not in df.columns:
+    st.error("Downloaded data has no 'Close' column.")
+    st.stop()
 
-    # Labeling
-    ax.set_xlabel("Date Index")
-    ax.set_ylabel("Closing Price")
-    ax.set_title("Closing Prices with Peak and Trough Highlighted")
-    plt.xticks([])  # Hide x-axis labels for readability
-    plt.tight_layout()
-    return fig
+df = df[['Close']].copy()
+df.dropna(inplace=True)
+df.reset_index(inplace=True)
+df.rename(columns={'index': 'Date'}, inplace=True)
+df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
+df.dropna(inplace=True)
+df['Date'] = pd.to_datetime(df['Date'])
 
-# User inputs for ticker and date range
-symbol = st.text_input("Ticker Symbol", "AAPL")
-today = date.today()
-default_start = today - timedelta(days=365)
-start_date = st.date_input("Start Date", default_start)
-end_date = st.date_input("End Date", today)
+# Sort by Date just in case
+df.sort_values('Date', inplace=True)
 
-if st.button("Get Data"):
-    if symbol:
-        # Fetch stock data
-        try:
-            df = yf.download(symbol, start=start_date, end=end_date)
-        except Exception as e:
-            st.error(f"Error fetching data: {e}")
-            st.stop()
+# Bar chart of closing prices with green/red bars
+df['Color'] = np.where(df['Close'].diff().fillna(0) >= 0, 'green', 'red')
+df.loc[df.index[0], 'Color'] = 'green'  # first entry default green
 
-        if df is None or df.empty:
-            st.error("No data found for the given ticker and date range.")
-        else:
-            # Ensure closing prices are numeric
-            df["Close"] = pd.to_numeric(df["Close"], errors='coerce')
-            df = df.dropna(subset=["Close"])
-            df = df.sort_index()
+max_close = df['Close'].max()
+min_close = df['Close'].min()
+max_date = df.loc[df['Close'].idxmax(), 'Date']
+min_date = df.loc[df['Close'].idxmin(), 'Date']
 
-            st.subheader(f"Closing Prices for {symbol}")
-            st.write(df["Close"].tail())  # show last few values
+# Prepare data for peak/trough annotation
+peak_df = pd.DataFrame({'Date': [max_date], 'Close': [max_close], 'Label': [f"Max: {max_close:.2f}"]})
+trough_df = pd.DataFrame({'Date': [min_date], 'Close': [min_close], 'Label': [f"Min: {min_close:.2f}"]})
 
-            # Plot bar chart with extremes
-            fig = plot_bar_with_extremes(df["Close"])
-            st.pyplot(fig)
-            plt.close(fig)
+bars = alt.Chart(df).mark_bar().encode(
+    x=alt.X('Date:T', title='Date'),
+    y=alt.Y('Close:Q', title='Close Price'),
+    color=alt.Color('Color:N', scale=alt.Scale(domain=['green', 'red'], range=['green', 'red']), legend=None)
+)
 
-            # Simple forecast: linear trend (next 30 business days by default)
-            st.subheader("Future Price Forecast")
-            forecast_days = st.slider("Forecast Days", 1, 90, 30)
-            prices = df["Close"].values
-            if len(prices) < 2:
-                st.write("Not enough data for forecasting.")
-            else:
-                x = np.arange(len(prices))
-                # Fit a linear trend (degree 1 polynomial)
-                coeffs = np.polyfit(x, prices, 1)
-                future_x = np.arange(len(prices), len(prices) + forecast_days)
-                preds = np.polyval(coeffs, future_x)
+text_peak = alt.Chart(peak_df).mark_text(
+    align='center',
+    dy=-10,
+    color='black'
+).encode(
+    x='Date:T',
+    y='Close:Q',
+    text='Label:N'
+)
 
-                # Generate future business dates starting after the end date
-                future_dates = pd.bdate_range(start=df.index[-1], periods=forecast_days+1)[1:]
-                forecast_series = pd.Series(preds, index=future_dates)
-                forecast_series = forecast_series.rename("Predicted Close")
+text_trough = alt.Chart(trough_df).mark_text(
+    align='center',
+    dy=15,
+    color='black'
+).encode(
+    x='Date:T',
+    y='Close:Q',
+    text='Label:N'
+)
 
-                st.line_chart(forecast_series)
-                st.write(forecast_series.head())
+price_chart = (bars + text_peak + text_trough).properties(
+    width=700,
+    height=400,
+    title=f"{ticker} Closing Prices"
+)
+st.altair_chart(price_chart, use_container_width=True)
+
+# Prepare data for model
+df_model = df.copy()
+df_model['X'] = np.arange(len(df_model))
+X = df_model[['X']].values
+y = df_model['Close'].values
+
+# Train/test split (80% train, 20% test)
+split_idx = int(len(df_model) * 0.8)
+X_train, X_test = X[:split_idx], X[split_idx:]
+y_train, y_test = y[:split_idx], y[split_idx:]
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test) if len(X_test) > 0 else []
+
+mse = mean_squared_error(y_test, y_pred) if len(y_test) > 0 else 0
+r2 = r2_score(y_test, y_pred) if len(y_test) > 0 else 1.0
+
+# Model performance
+st.subheader("Model Performance")
+col1, col2 = st.columns(2)
+col1.metric("Mean Squared Error (MSE)", f"{mse:.2f}")
+col2.metric("R² Score", f"{r2:.2f}")
+
+# Predict next price
+next_X = np.array([[len(df_model)]])
+pred_price = model.predict(next_X)[0]
+
+# Determine next date for display
+last_date = df_model['Date'].iloc[-1]
+if interval == "Hourly":
+    next_date = last_date + pd.DateOffset(hours=1)
+elif interval == "Monthly":
+    next_date = last_date + pd.DateOffset(months=1)
+else:  # Daily
+    next_date = last_date + pd.DateOffset(days=1)
+
+st.subheader("Next Price Prediction")
+st.write(f"Predicted next closing price for {ticker} on {next_date.date()} is **${pred_price:.2f}**.")
+
+# Recent history table
+st.subheader("Recent Price Changes")
+table_df = df[['Date', 'Close']].copy()
+table_df['Change'] = table_df['Close'].diff().round(2)
+table_df['Pct Change'] = (table_df['Close'].pct_change() * 100).round(2)
+table_df = table_df.tail(10).reset_index(drop=True)
+st.dataframe(table_df.style.format({
+    'Date': lambda t: t.strftime("%Y-%m-%d %H:%M") if hasattr(t, "strftime") else t,
+    'Close': "{:.2f}",
+    'Change': "{:.2f}",
+    'Pct Change': "{:.2f}"
+}))
