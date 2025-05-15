@@ -52,6 +52,7 @@ def plot_bar_with_extremes(stock_data, stock_symbol):
 
     # Calculate daily difference and clean
     diff = close_prices.diff().fillna(0).astype(float)
+    diff = pd.to_numeric(diff, errors='coerce').fillna(0)
 
     # Bar colors: green if price went up or same, red if down
     colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff]
