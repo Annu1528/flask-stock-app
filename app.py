@@ -42,6 +42,7 @@ if start_date > end_date:
 
 st.title("📈 Stock Price Prediction App — Vibrant & Insightful")
 
+# Download stock data
 stock_data = yf.download(stock_symbol, start=start_date, end=end_date)
 if stock_data.empty:
     st.error(f"No data found for ticker '{stock_symbol}'. Please try another symbol.")
@@ -49,20 +50,18 @@ if stock_data.empty:
 
 stock_data.ffill(inplace=True)
 
-def plot_bar_with_extremes(stock_data, stock_symbol):
-    close = stock_data['Close']
-    dates = stock_data.index
+def plot_bar_with_extremes(df: pd.DataFrame, symbol: str):
+    close = df['Close']
+    dates = df.index
 
-    fig, ax = plt.subplots(figsize=(12, 5))
-
-    # Calculate daily change safely:
+    # Calculate daily change safely
     diff = close.diff().fillna(0)
-
-    # Convert diff to float explicitly and handle any non-finite values safely
-    diff = pd.to_numeric(diff, errors='coerce').fillna(0)
+    # Ensure diff is a pandas Series with numeric dtype
+    diff = pd.Series(diff, index=dates).astype(float).fillna(0)
 
     colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff]
 
+    fig, ax = plt.subplots(figsize=(12, 5))
     ax.bar(dates, close, color=colors, edgecolor='black')
 
     peak_idx = close.idxmax()
@@ -78,7 +77,7 @@ def plot_bar_with_extremes(stock_data, stock_symbol):
     ax.annotate(f'Lowest: {low_val:.2f}', (low_idx, low_val),
                 textcoords="offset points", xytext=(0,-15), ha='center', color='orange', weight='bold')
 
-    ax.set_title(f"📊 Closing Prices for {stock_symbol}", fontsize=16, weight='bold')
+    ax.set_title(f"📊 Closing Prices for {symbol}", fontsize=16, weight='bold')
     ax.set_ylabel("Price ($)", fontsize=14)
     ax.grid(alpha=0.3)
     ax.legend()
