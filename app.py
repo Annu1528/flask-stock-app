@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import yfinance as yf
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
@@ -9,149 +8,175 @@ from sklearn.metrics import mean_squared_error, r2_score
 import datetime
 import matplotlib.pyplot as plt
 
-# -------------------- PAGE CONFIG -------------------- #
-st.set_page_config(page_title="Stock Price Prediction", page_icon="📈")
+# --- Streamlit page config for nicer look ---
+st.set_page_config(
+    page_title="📈 Stock Price Predictor",
+    page_icon="💹",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# -------------------- UTILITY FUNCTIONS -------------------- #
-def load_data(symbol, start, end):
-    try:
-        with st.spinner("Downloading stock data..."):
-            data = yf.download(symbol, start=start, end=end)
-            data.ffill(inplace=True)
-        return data
-    except Exception as e:
-        st.error(f"Error fetching stock data: {e}")
-        return pd.DataFrame()
-
-def preprocess_data(data):
-    features = data[['Open', 'High', 'Low', 'Volume']]
-    target = data[['Close']]
-
-    feature_scaler = MinMaxScaler()
-    target_scaler = MinMaxScaler()
-
-    X_scaled = feature_scaler.fit_transform(features)
-    y_scaled = target_scaler.fit_transform(target)
-
-    return X_scaled, y_scaled, feature_scaler, target_scaler
-
-def train_model(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    return model, X_test, y_test, y_pred
-
-def predict_next_price(model, latest_data, feature_scaler, target_scaler):
-    try:
-        latest_features = latest_data[['Open', 'High', 'Low', 'Volume']]
-        latest_scaled = feature_scaler.transform(latest_features)
-        latest_point = latest_scaled[-1].reshape(1, -1)
-        future_scaled = model.predict(latest_point)
-        future_price = target_scaler.inverse_transform(future_scaled)
-        return round(float(future_price[0][0]), 2)
-    except Exception as e:
-        st.error(f"Prediction failed: {e}")
-        return None
-
-def display_forecast_plot(stock_data, predicted_price):
-    fig, ax = plt.subplots()
-    ax.plot(stock_data.index, stock_data['Close'], label='Historical Close')
-    ax.axhline(predicted_price, color='red', linestyle='--', label='Predicted Price')
-    ax.set_title("Historical vs Predicted Price")
-    ax.legend()
-    st.pyplot(fig)
-
-def show_prediction_history(symbol):
-    st.subheader("🕒 Prediction History")
-    periods = {
-        "Hourly (Past 24h)": ('1d', '1h'),
-        "Daily (Past 7d)": ('7d', '1d'),
-        "Weekly (Past 1mo)": ('1mo', '1wk')
-    }
-    for label, (period, interval) in periods.items():
-        hist_data = yf.download(symbol, period=period, interval=interval)
-        if not hist_data.empty:
-            st.write(f"**{label} Close Prices**")
-            st.line_chart(hist_data['Close'])
-
-
-# -------------------- SIDEBAR INPUT -------------------- #
+# Sidebar: Instructions & Inputs
 st.sidebar.title("📋 Instructions")
-st.sidebar.info("""
-- Select a company.
-- Pick a date range.
-- Choose prediction interval.
-- View historical prices and predictions.
-""")
+st.sidebar.info(
+    """
+    - Enter a stock ticker symbol (e.g., AAPL, MSFT, TSLA).
+    - Select the date range for historical data.
+    - Choose prediction interval: Next Hour, Next Day, or Next Month.
+    - View model performance and historical prices.
+    - See prediction changes with positive/negative differences.
+    """
+)
 
-stock_options = {
-    "Apple": "AAPL",
-    "Microsoft": "MSFT",
-    "Tesla": "TSLA",
-    "Amazon": "AMZN",
-    "Google": "GOOGL",
-    "Meta": "META",
-    "NVIDIA": "NVDA"
-}
-selected_company = st.sidebar.selectbox("Select Company", options=list(stock_options.keys()))
-stock_symbol = stock_options[selected_company]
+# Search bar for ticker symbol with placeholder & uppercase
+stock_symbol = st.sidebar.text_input("🔎 Enter Stock Ticker Symbol", value="AAPL").upper()
 
+# Date selectors
 start_date = st.sidebar.date_input("Start Date", datetime.date(2010, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
+# Prediction interval including monthly
 prediction_interval = st.sidebar.selectbox(
     "Prediction Interval",
-    options=["Next Hour", "Next Day"]
+    options=["Next Hour", "Next Day", "Next Month"]
 )
 
+# Validate dates
 if start_date > end_date:
     st.sidebar.error("Start date must be before end date.")
     st.stop()
 
-# -------------------- MAIN SECTION -------------------- #
-st.title("📈 Stock Price Prediction App")
+# Title
+st.title("📈 Stock Price Prediction App — Vibrant & Insightful")
 
-stock_data = load_data(stock_symbol, start_date, end_date)
+# Download historical data
+stock_data = yf.download(stock_symbol, start=start_date, end=end_date)
 if stock_data.empty:
+    st.error(f"No data found for ticker '{stock_symbol}'. Please try another symbol.")
     st.stop()
 
-st.subheader(f"📊 Historical Closing Prices for {stock_symbol}")
-st.line_chart(stock_data['Close'])
+stock_data.ffill(inplace=True)  # Fill missing data
 
-X_scaled, y_scaled, feature_scaler, target_scaler = preprocess_data(stock_data)
-model, X_test, y_test, y_pred_scaled = train_model(X_scaled, y_scaled)
+# --- Plotting function ---
+def plot_bar_with_extremes(stock_data):
+    close = stock_data['Close']
+    dates = stock_data.index
 
-# Metrics
+    fig, ax = plt.subplots(figsize=(12, 5))
+
+    # Bars with gradient color based on price increase/decrease day-over-day
+    diff = close.diff()
+    colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff.fillna(0)]  # Green if up, Red if down
+
+    ax.bar(dates, close, color=colors, edgecolor='black')
+
+    # Peak and lowest points
+    peak_idx = close.idxmax()
+    low_idx = close.idxmin()
+    peak_val = close.max()
+    low_val = close.min()
+
+    ax.scatter(peak_idx, peak_val, color='blue', s=120, label='Peak (High)')
+    ax.scatter(low_idx, low_val, color='orange', s=120, label='Lowest (Low)')
+
+    # Annotate peak and lowest
+    ax.annotate(f'Peak: {peak_val:.2f}', (peak_idx, peak_val),
+                textcoords="offset points", xytext=(0,10), ha='center', color='blue', weight='bold')
+    ax.annotate(f'Lowest: {low_val:.2f}', (low_idx, low_val),
+                textcoords="offset points", xytext=(0,-15), ha='center', color='orange', weight='bold')
+
+    ax.set_title(f"📊 Closing Prices for {stock_symbol}", fontsize=16, weight='bold')
+    ax.set_ylabel("Price ($)", fontsize=14)
+    ax.grid(alpha=0.3)
+    ax.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    st.pyplot(fig)
+
+# Show the bar chart with extremes
+plot_bar_with_extremes(stock_data)
+
+# --- Data Scaling & Model Training ---
+
+feature_scaler = MinMaxScaler()
+target_scaler = MinMaxScaler()
+
+features = stock_data[['Open', 'High', 'Low', 'Volume']]
+features_scaled = feature_scaler.fit_transform(features)
+
+target = stock_data[['Close']]
+target_scaled = target_scaler.fit_transform(target)
+
+X = features_scaled
+y = target_scaled
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Predict on test set
+y_pred_scaled = model.predict(X_test)
 y_test_actual = target_scaler.inverse_transform(y_test)
 y_pred_actual = target_scaler.inverse_transform(y_pred_scaled)
+
+# Metrics
 mse = mean_squared_error(y_test_actual, y_pred_actual)
 r2 = r2_score(y_test_actual, y_pred_actual)
 
-st.subheader(f"📌 Model Performance for {stock_symbol}")
-col1, col2 = st.columns(2)
-col1.metric("Mean Squared Error", round(mse, 6))
-col2.metric("R² Score", round(r2, 4))
+# Show model performance with vibrant colors
+st.markdown(
+    f"""
+    <div style="display:flex; gap:30px; font-size:18px; font-weight:bold;">
+        <div style="color:#FF5733;">🔴 Mean Squared Error: {mse:.6f}</div>
+        <div style="color:#2980B9;">🔵 R² Score: {r2:.4f}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-# Prediction
-if prediction_interval == "Next Hour":
-    recent_data = yf.download(stock_symbol, period='1d', interval='1h')
-else:
-    recent_data = yf.download(stock_symbol, period='2d', interval='1d')
+# --- Prepare latest data for prediction ---
+def get_latest_data(symbol, interval):
+    if interval == "Next Hour":
+        return yf.download(symbol, period='1d', interval='1h')
+    elif interval == "Next Day":
+        return yf.download(symbol, period='2d', interval='1d')
+    elif interval == "Next Month":
+        # Monthly data for last 3 months, take latest month for prediction
+        return yf.download(symbol, period='3mo', interval='1mo')
+    else:
+        return pd.DataFrame()
 
-if recent_data.empty:
-    st.error("No recent data found for prediction.")
+latest_data = get_latest_data(stock_symbol, prediction_interval)
+
+if latest_data.empty:
+    st.error("No recent data available for prediction.")
     st.stop()
 
-predicted_price = predict_next_price(model, recent_data, feature_scaler, target_scaler)
+# Scale latest features and predict
+latest_features = latest_data[['Open', 'High', 'Low', 'Volume']]
+latest_scaled = feature_scaler.transform(latest_features)
+future_price_scaled = model.predict(latest_scaled)
+future_price = target_scaler.inverse_transform(future_price_scaled)
 
-if predicted_price:
-    st.subheader(f"🔮 Predicted {prediction_interval} Price for {stock_symbol}")
-    st.metric(label="Predicted Price", value=f"${predicted_price}")
-    display_forecast_plot(stock_data, predicted_price)
-    st.success("Prediction complete!")
+# Take last predicted value as forecast
+predicted_price = float(future_price[-1][0])
+predicted_price_rounded = round(predicted_price, 2)
 
-# Show prediction history
-show_prediction_history(stock_symbol)
+# Calculate difference compared to last known close price
+last_close_price = stock_data['Close'][-1]
+price_diff = predicted_price - last_close_price
+price_diff_str = f"+${abs(price_diff):.2f}" if price_diff >= 0 else f"-${abs(price_diff):.2f}"
+
+# Display prediction with difference in vibrant style
+st.markdown(
+    f"""
+    <h3 style="color:#8E44AD;">{prediction_interval} Stock Price Prediction for {stock_symbol}</h3>
+    <h2 style="color:#27AE60;">Predicted Price: ${predicted_price_rounded}</h2>
+    <h3 style="color:{'#27AE60' if price_diff >= 0 else '#C0392B'};">
+        Change from last close: {price_diff_str}
+    </h3>
+    """,
+    unsafe_allow_html=True,
+)
