@@ -8,7 +8,6 @@ from sklearn.metrics import mean_squared_error, r2_score
 import datetime
 import matplotlib.pyplot as plt
 
-# --- Streamlit page config ---
 st.set_page_config(
     page_title="📈 Stock Price Predictor",
     page_icon="💹",
@@ -16,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Sidebar: Instructions & Inputs
 st.sidebar.title("📋 Instructions")
 st.sidebar.info(
     """
@@ -28,44 +26,42 @@ st.sidebar.info(
     """
 )
 
-# Search bar for ticker symbol with placeholder & uppercase
 stock_symbol = st.sidebar.text_input("🔎 Enter Stock Ticker Symbol", value="AAPL").upper()
 
-# Date selectors
 start_date = st.sidebar.date_input("Start Date", datetime.date(2010, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
-# Prediction interval including monthly
 prediction_interval = st.sidebar.selectbox(
     "Prediction Interval",
     options=["Next Hour", "Next Day", "Next Month"]
 )
 
-# Validate dates
 if start_date > end_date:
     st.sidebar.error("Start date must be before end date.")
     st.stop()
 
-# Title
 st.title("📈 Stock Price Prediction App — Vibrant & Insightful")
 
-# Download historical data
 stock_data = yf.download(stock_symbol, start=start_date, end=end_date)
 if stock_data.empty:
     st.error(f"No data found for ticker '{stock_symbol}'. Please try another symbol.")
     st.stop()
 
-stock_data.ffill(inplace=True)  # Fill missing data
+stock_data.ffill(inplace=True)
 
-# --- Plotting function ---
 def plot_bar_with_extremes(stock_data, stock_symbol):
     close = stock_data['Close']
     dates = stock_data.index
 
     fig, ax = plt.subplots(figsize=(12, 5))
 
-    diff = close.diff().fillna(0).astype(float)  # Safe float conversion before list comprehension
-    colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff]  # Green if up, Red if down
+    # Calculate daily change safely:
+    diff = close.diff().fillna(0)
+
+    # Convert diff to float explicitly and handle any non-finite values safely
+    diff = pd.to_numeric(diff, errors='coerce').fillna(0)
+
+    colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff]
 
     ax.bar(dates, close, color=colors, edgecolor='black')
 
@@ -91,10 +87,7 @@ def plot_bar_with_extremes(stock_data, stock_symbol):
 
     st.pyplot(fig)
 
-# Show the bar chart with extremes
 plot_bar_with_extremes(stock_data, stock_symbol)
-
-# --- Data Scaling & Model Training ---
 
 feature_scaler = MinMaxScaler()
 target_scaler = MinMaxScaler()
@@ -113,16 +106,13 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 model = LinearRegression()
 model.fit(X_train, y_train)
 
-# Predict on test set
 y_pred_scaled = model.predict(X_test)
 y_test_actual = target_scaler.inverse_transform(y_test)
 y_pred_actual = target_scaler.inverse_transform(y_pred_scaled)
 
-# Metrics
 mse = mean_squared_error(y_test_actual, y_pred_actual)
 r2 = r2_score(y_test_actual, y_pred_actual)
 
-# Show model performance with vibrant colors
 st.markdown(
     f"""
     <div style="display:flex; gap:30px; font-size:18px; font-weight:bold;">
@@ -133,14 +123,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- Prepare latest data for prediction ---
 def get_latest_data(symbol, interval):
     if interval == "Next Hour":
         return yf.download(symbol, period='1d', interval='1h')
     elif interval == "Next Day":
         return yf.download(symbol, period='2d', interval='1d')
     elif interval == "Next Month":
-        # Monthly data for last 3 months, take latest month for prediction
         return yf.download(symbol, period='3mo', interval='1mo')
     else:
         return pd.DataFrame()
@@ -151,22 +139,18 @@ if latest_data.empty:
     st.error("No recent data available for prediction.")
     st.stop()
 
-# Scale latest features and predict
 latest_features = latest_data[['Open', 'High', 'Low', 'Volume']]
 latest_scaled = feature_scaler.transform(latest_features)
 future_price_scaled = model.predict(latest_scaled)
 future_price = target_scaler.inverse_transform(future_price_scaled)
 
-# Take last predicted value as forecast
 predicted_price = float(future_price[-1][0])
 predicted_price_rounded = round(predicted_price, 2)
 
-# Calculate difference compared to last known close price
 last_close_price = stock_data['Close'][-1]
 price_diff = predicted_price - last_close_price
 price_diff_str = f"+${abs(price_diff):.2f}" if price_diff >= 0 else f"-${abs(price_diff):.2f}"
 
-# Display prediction with difference in vibrant style
 st.markdown(
     f"""
     <h3 style="color:#8E44AD;">{prediction_interval} Stock Price Prediction for {stock_symbol}</h3>
