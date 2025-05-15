@@ -64,12 +64,11 @@ def plot_bar_with_extremes(stock_data, stock_symbol):
 
     fig, ax = plt.subplots(figsize=(12, 5))
 
-    diff = close.diff()
-    colors = ['#2ECC71' if float(x) >= 0 else '#E74C3C' for x in diff.fillna(0)]  # Green if up, Red if down
+    diff = close.diff().fillna(0).astype(float)  # Safe float conversion before list comprehension
+    colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff]  # Green if up, Red if down
 
     ax.bar(dates, close, color=colors, edgecolor='black')
 
-    # Peak and lowest points
     peak_idx = close.idxmax()
     low_idx = close.idxmin()
     peak_val = close.max()
@@ -178,3 +177,4 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
