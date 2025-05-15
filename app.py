@@ -8,7 +8,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 import datetime
 import matplotlib.pyplot as plt
 
-# --- Streamlit page config for nicer look ---
+# --- Streamlit page config ---
 st.set_page_config(
     page_title="📈 Stock Price Predictor",
     page_icon="💹",
@@ -58,15 +58,14 @@ if stock_data.empty:
 stock_data.ffill(inplace=True)  # Fill missing data
 
 # --- Plotting function ---
-def plot_bar_with_extremes(stock_data):
+def plot_bar_with_extremes(stock_data, stock_symbol):
     close = stock_data['Close']
     dates = stock_data.index
 
     fig, ax = plt.subplots(figsize=(12, 5))
 
-    # Bars with gradient color based on price increase/decrease day-over-day
     diff = close.diff()
-    colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff.fillna(0)]  # Green if up, Red if down
+    colors = ['#2ECC71' if float(x) >= 0 else '#E74C3C' for x in diff.fillna(0)]  # Green if up, Red if down
 
     ax.bar(dates, close, color=colors, edgecolor='black')
 
@@ -79,7 +78,6 @@ def plot_bar_with_extremes(stock_data):
     ax.scatter(peak_idx, peak_val, color='blue', s=120, label='Peak (High)')
     ax.scatter(low_idx, low_val, color='orange', s=120, label='Lowest (Low)')
 
-    # Annotate peak and lowest
     ax.annotate(f'Peak: {peak_val:.2f}', (peak_idx, peak_val),
                 textcoords="offset points", xytext=(0,10), ha='center', color='blue', weight='bold')
     ax.annotate(f'Lowest: {low_val:.2f}', (low_idx, low_val),
@@ -95,7 +93,7 @@ def plot_bar_with_extremes(stock_data):
     st.pyplot(fig)
 
 # Show the bar chart with extremes
-plot_bar_with_extremes(stock_data)
+plot_bar_with_extremes(stock_data, stock_symbol)
 
 # --- Data Scaling & Model Training ---
 
