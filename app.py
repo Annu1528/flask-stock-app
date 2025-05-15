@@ -34,7 +34,7 @@ if start_date > end_date:
     st.sidebar.error("Start date must be before end date.")
     st.stop()
 
-st.title(f"📈 Stock Price Prediction App for {stock_symbol}")
+st.title("📈 Stock Price Prediction App")
 
 # Download historical stock data
 stock_data = yf.download(stock_symbol, start=start_date, end=end_date)
@@ -45,22 +45,21 @@ if stock_data.empty:
 
 stock_data.ffill(inplace=True)
 
-# Function: Plot closing prices as bars colored by daily up/down movement,
-# and highlight max/min prices with total price change displayed.
+# Fixed plot function with safe numeric diff and vibrant colors
 def plot_bar_with_extremes(stock_data, stock_symbol):
     dates = stock_data.index
     close_prices = stock_data['Close'].astype(float)
 
-    # Calculate daily price change difference
-    diff = close_prices.diff().fillna(0).astype(float)
+    # Calculate daily price differences safely
+    diff = close_prices.diff().fillna(0)
+    diff = pd.to_numeric(diff, errors='coerce').fillna(0)
 
-    # Color bars green if price went up or stayed same, red if down
+    # Colors for bars: green if price up/same, red if down
     colors = ['#2ECC71' if x >= 0 else '#E74C3C' for x in diff]
 
     plt.figure(figsize=(14, 6))
     plt.bar(dates, close_prices, color=colors, width=0.8)
 
-    # Highlight max and min closing prices
     max_price = close_prices.max()
     max_date = close_prices.idxmax()
 
@@ -70,10 +69,10 @@ def plot_bar_with_extremes(stock_data, stock_symbol):
     plt.scatter(max_date, max_price, color='gold', s=180, label='Max Price')
     plt.scatter(min_date, min_price, color='blue', s=180, label='Min Price')
 
-    plt.title(f"Closing Prices Bar Chart with Price Movement for {stock_symbol}")
-    plt.xlabel("Date")
-    plt.ylabel("Closing Price (USD)")
-    plt.legend()
+    plt.title(f"Closing Prices Bar Chart with Price Movement for {stock_symbol}", fontsize=16)
+    plt.xlabel("Date", fontsize=14)
+    plt.ylabel("Closing Price (USD)", fontsize=14)
+    plt.legend(fontsize=12)
 
     total_change = close_prices.iloc[-1] - close_prices.iloc[0]
     change_str = f"+${total_change:.2f}" if total_change >= 0 else f"-${abs(total_change):.2f}"
@@ -149,22 +148,23 @@ def show_price_changes(history_data, interval_name):
     close_prices = history_data['Close']
     changes = close_prices.diff().fillna(0)
 
-    # Show each date with price and change (+/-)
+    # Show price with change +/-, color-coded text
     for i in range(len(close_prices)):
         price = close_prices.iloc[i]
         change = changes.iloc[i]
         change_sign = "+" if change >= 0 else ""
-        st.markdown(f"**{close_prices.index[i].date()}**: ${price:.2f} ({change_sign}{change:.2f})")
+        color = "green" if change >= 0 else "red"
+        st.markdown(f"**{close_prices.index[i].date()}**: ${price:.2f} "
+                    f"(<span style='color:{color}'>{change_sign}{change:.2f}</span>)",
+                    unsafe_allow_html=True)
 
 # Show hourly/daily/monthly price changes based on user interval choice
 if prediction_interval == "Next Hour":
     hist_data = yf.download(stock_symbol, period='5d', interval='1h')
     show_price_changes(hist_data, "Hourly")
-
 elif prediction_interval == "Next Day":
     hist_data = yf.download(stock_symbol, period='1mo', interval='1d')
     show_price_changes(hist_data, "Daily")
-
 else:  # Monthly
     hist_data = yf.download(stock_symbol, period='12mo', interval='1mo')
     show_price_changes(hist_data, "Monthly")
