@@ -1,5 +1,11 @@
 {
-  "python.analysis.extraPaths": [
-    "C:\\Users\\kunal\\OneDrive\\Desktop\\ML project 1\\venv\\Lib\\site-packages"
-  ]
+  "python.experiments.optOutFrom": ["pythonSurveyNotification", "pythonTestAdapter"],
+  "python.pythonPath": "path/to/python"
 }
+
+
+
+
+
+
+
