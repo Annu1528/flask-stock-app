@@ -1,157 +1,67 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 import yfinance as yf
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, r2_score
+import pandas as pd
+import plotly.graph_objs as go
+from scipy.signal import find_peaks
+from fbprophet import Prophet
 import datetime
-import matplotlib.pyplot as plt
 
-# -------------------- PAGE CONFIG -------------------- #
-st.set_page_config(page_title="Stock Price Prediction", page_icon="📈")
+# Set page configuration
+st.set_page_config(page_title="Stock Market Prediction", layout="wide")
 
-# -------------------- UTILITY FUNCTIONS -------------------- #
-def load_data(symbol, start, end):
-    try:
-        with st.spinner("Downloading stock data..."):
-            data = yf.download(symbol, start=start, end=end)
-            data.ffill(inplace=True)
-        return data
-    except Exception as e:
-        st.error(f"Error fetching stock data: {e}")
-        return pd.DataFrame()
-
-def preprocess_data(data):
-    features = data[['Open', 'High', 'Low', 'Volume']]
-    target = data[['Close']]
-
-    feature_scaler = MinMaxScaler()
-    target_scaler = MinMaxScaler()
-
-    X_scaled = feature_scaler.fit_transform(features)
-    y_scaled = target_scaler.fit_transform(target)
-
-    return X_scaled, y_scaled, feature_scaler, target_scaler
-
-def train_model(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    return model, X_test, y_test, y_pred
-
-def predict_next_price(model, latest_data, feature_scaler, target_scaler):
-    try:
-        latest_features = latest_data[['Open', 'High', 'Low', 'Volume']]
-        latest_scaled = feature_scaler.transform(latest_features)
-        latest_point = latest_scaled[-1].reshape(1, -1)
-        future_scaled = model.predict(latest_point)
-        future_price = target_scaler.inverse_transform(future_scaled)
-        return round(float(future_price[0][0]), 2)
-    except Exception as e:
-        st.error(f"Prediction failed: {e}")
-        return None
-
-def display_forecast_plot(stock_data, predicted_price):
-    fig, ax = plt.subplots()
-    ax.plot(stock_data.index, stock_data['Close'], label='Historical Close')
-    ax.axhline(predicted_price, color='red', linestyle='--', label='Predicted Price')
-    ax.set_title("Historical vs Predicted Price")
-    ax.legend()
-    st.pyplot(fig)
-
-def show_prediction_history(symbol):
-    st.subheader("🕒 Prediction History")
-    periods = {
-        "Hourly (Past 24h)": ('1d', '1h'),
-        "Daily (Past 7d)": ('7d', '1d'),
-        "Weekly (Past 1mo)": ('1mo', '1wk')
-    }
-    for label, (period, interval) in periods.items():
-        hist_data = yf.download(symbol, period=period, interval=interval)
-        if not hist_data.empty:
-            st.write(f"**{label} Close Prices**")
-            st.line_chart(hist_data['Close'])
-
-
-# -------------------- SIDEBAR INPUT -------------------- #
-st.sidebar.title("📋 Instructions")
-st.sidebar.info("""
-- Select a company.
-- Pick a date range.
-- Choose prediction interval.
-- View historical prices and predictions.
+# Title and description
+st.title("📈 Stock Market Prediction with Peak-Trough Analysis")
+st.markdown("""
+    This application allows you to analyze stock price trends by identifying significant peaks and troughs,
+    and forecast future prices using the Facebook Prophet model.
 """)
 
-stock_options = {
-    "Apple": "AAPL",
-    "Microsoft": "MSFT",
-    "Tesla": "TSLA",
-    "Amazon": "AMZN",
-    "Google": "GOOGL",
-    "Meta": "META",
-    "NVIDIA": "NVDA"
-}
-selected_company = st.sidebar.selectbox("Select Company", options=list(stock_options.keys()))
-stock_symbol = stock_options[selected_company]
-
-start_date = st.sidebar.date_input("Start Date", datetime.date(2010, 1, 1))
+# Sidebar for user input
+st.sidebar.header("User Input")
+ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL):", "AAPL")
+start_date = st.sidebar.date_input("Start Date", datetime.date(2020, 1, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
-prediction_interval = st.sidebar.selectbox(
-    "Prediction Interval",
-    options=["Next Hour", "Next Day"]
-)
+# Fetch stock data
+@st.cache
+def load_data(ticker, start_date, end_date):
+    data = yf.download(ticker, start=start_date, end=end_date)
+    return data
 
-if start_date > end_date:
-    st.sidebar.error("Start date must be before end date.")
-    st.stop()
+data = load_data(ticker, start_date, end_date)
 
-# -------------------- MAIN SECTION -------------------- #
-st.title("📈 Stock Price Prediction App")
+# Display stock data
+st.subheader(f"Stock Data for {ticker} ({start_date} to {end_date})")
+st.write(data.tail())
 
-stock_data = load_data(stock_symbol, start_date, end_date)
-if stock_data.empty:
-    st.stop()
+# Plot stock price with peaks and troughs
+st.subheader("Stock Price with Peaks and Troughs")
+prices = data['Close'].values
+peaks, _ = find_peaks(prices)
+troughs, _ = find_peaks(-prices)
 
-st.subheader(f"📊 Historical Closing Prices for {stock_symbol}")
-st.line_chart(stock_data['Close'])
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=data.index, y=prices, mode='lines', name='Close Price'))
+fig.add_trace(go.Scatter(x=data.index[peaks], y=prices[peaks], mode='markers', name='Peaks', marker=dict(color='red', size=10)))
+fig.add_trace(go.Scatter(x=data.index[troughs], y=prices[troughs], mode='markers', name='Troughs', marker=dict(color='green', size=10)))
+fig.update_layout(title=f"{ticker} Stock Price with Peaks and Troughs", xaxis_title="Date", yaxis_title="Price")
+st.plotly_chart(fig)
 
-X_scaled, y_scaled, feature_scaler, target_scaler = preprocess_data(stock_data)
-model, X_test, y_test, y_pred_scaled = train_model(X_scaled, y_scaled)
+# Forecasting with Facebook Prophet
+st.subheader("Price Forecasting with Facebook Prophet")
+df_prophet = data[['Close']].reset_index()
+df_prophet.columns = ['ds', 'y']
 
-# Metrics
-y_test_actual = target_scaler.inverse_transform(y_test)
-y_pred_actual = target_scaler.inverse_transform(y_pred_scaled)
-mse = mean_squared_error(y_test_actual, y_pred_actual)
-r2 = r2_score(y_test_actual, y_pred_actual)
+model = Prophet()
+model.fit(df_prophet)
 
-st.subheader(f"📌 Model Performance for {stock_symbol}")
-col1, col2 = st.columns(2)
-col1.metric("Mean Squared Error", round(mse, 6))
-col2.metric("R² Score", round(r2, 4))
+future = model.make_future_dataframe(df_prophet, periods=365)
+forecast = model.predict(future)
 
-# Prediction
-if prediction_interval == "Next Hour":
-    recent_data = yf.download(stock_symbol, period='1d', interval='1h')
-else:
-    recent_data = yf.download(stock_symbol, period='2d', interval='1d')
+fig2 = model.plot(forecast)
+st.write(fig2)
 
-if recent_data.empty:
-    st.error("No recent data found for prediction.")
-    st.stop()
-
-predicted_price = predict_next_price(model, recent_data, feature_scaler, target_scaler)
-
-if predicted_price:
-    st.subheader(f"🔮 Predicted {prediction_interval} Price for {stock_symbol}")
-    st.metric(label="Predicted Price", value=f"${predicted_price}")
-    display_forecast_plot(stock_data, predicted_price)
-    st.success("Prediction complete!")
-
-# Show prediction history
-show_prediction_history(stock_symbol)
+# Show forecast components
+st.subheader("Forecast Components")
+fig3 = model.plot_components(forecast)
+st.write(fig3)
