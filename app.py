@@ -1,67 +1,99 @@
-import streamlit as st
-import yfinance as yf
+import os
 import pandas as pd
-import plotly.graph_objs as go
-from scipy.signal import find_peaks
-from fbprophet import Prophet
-import datetime
+import numpy as np
+import yfinance as yf
+from flask import Flask, jsonify, request
+from flask_caching import Cache
+from flask_cors import CORS
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.preprocessing import MinMaxScaler
+from datetime import datetime
+import tensorflow as tf
 
-# Set page configuration
-st.set_page_config(page_title="Stock Market Prediction", layout="wide")
+# Use recommended TensorFlow import patterns
+load_model = tf.keras.models.load_model
+Dense = tf.keras.layers.Dense
+LSTM = tf.keras.layers.LSTM
 
-# Title and description
-st.title("📈 Stock Market Prediction with Peak-Trough Analysis")
-st.markdown("""
-    This application allows you to analyze stock price trends by identifying significant peaks and troughs,
-    and forecast future prices using the Facebook Prophet model.
-""")
+# Initialize Flask app
+app = Flask(__name__)
+CORS(app)  # Enable CORS for cross-origin requests
+app.config['CACHE_TYPE'] = 'simple'
+cache = Cache(app)
 
-# Sidebar for user input
-st.sidebar.header("User Input")
-ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL):", "AAPL")
-start_date = st.sidebar.date_input("Start Date", datetime.date(2020, 1, 1))
-end_date = st.sidebar.date_input("End Date", datetime.date.today())
+# Load pre-trained LSTM model (ensure this path is valid)
+lstm_model = load_model('lstm_model.h5')
 
-# Fetch stock data
-@st.cache
-def load_data(ticker, start_date, end_date):
-    data = yf.download(ticker, start=start_date, end=end_date)
-    return data
+# -------------------- ARIMA Forecasting --------------------
+@app.route('/forecast/arima/<ticker>', methods=['GET'])
+def arima_forecast(ticker):
+    try:
+        df = yf.download(ticker, start='2010-01-01', end=datetime.now().strftime('%Y-%m-%d'))
+        df = df[['Close']].dropna()
 
-data = load_data(ticker, start_date, end_date)
+        model = ARIMA(df, order=(5, 1, 0))
+        model_fit = model.fit()
 
-# Display stock data
-st.subheader(f"Stock Data for {ticker} ({start_date} to {end_date})")
-st.write(data.tail())
+        forecast = model_fit.forecast(steps=30)
+        forecast_dates = pd.date_range(df.index[-1], periods=31, freq='B')[1:]
 
-# Plot stock price with peaks and troughs
-st.subheader("Stock Price with Peaks and Troughs")
-prices = data['Close'].values
-peaks, _ = find_peaks(prices)
-troughs, _ = find_peaks(-prices)
+        return jsonify({
+            'forecast_dates': forecast_dates.strftime('%Y-%m-%d').tolist(),
+            'forecast_values': forecast.tolist()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=data.index, y=prices, mode='lines', name='Close Price'))
-fig.add_trace(go.Scatter(x=data.index[peaks], y=prices[peaks], mode='markers', name='Peaks', marker=dict(color='red', size=10)))
-fig.add_trace(go.Scatter(x=data.index[troughs], y=prices[troughs], mode='markers', name='Troughs', marker=dict(color='green', size=10)))
-fig.update_layout(title=f"{ticker} Stock Price with Peaks and Troughs", xaxis_title="Date", yaxis_title="Price")
-st.plotly_chart(fig)
+# -------------------- LSTM Forecasting --------------------
+@app.route('/forecast/lstm/<ticker>', methods=['GET'])
+def lstm_forecast(ticker):
+    try:
+        df = yf.download(ticker, start='2010-01-01', end=datetime.now().strftime('%Y-%m-%d'))
+        df = df[['Close']].dropna()
 
-# Forecasting with Facebook Prophet
-st.subheader("Price Forecasting with Facebook Prophet")
-df_prophet = data[['Close']].reset_index()
-df_prophet.columns = ['ds', 'y']
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        scaled_data = scaler.fit_transform(df)
 
-model = Prophet()
-model.fit(df_prophet)
+        X, y = [], []
+        for i in range(60, len(scaled_data)):
+            X.append(scaled_data[i-60:i, 0])
+            y.append(scaled_data[i, 0])
+        X = np.array(X)
+        X = X.reshape((X.shape[0], X.shape[1], 1))
 
-future = model.make_future_dataframe(df_prophet, periods=365)
-forecast = model.predict(future)
+        forecast = lstm_model.predict(X[-30:])
+        forecast = scaler.inverse_transform(forecast)
 
-fig2 = model.plot(forecast)
-st.write(fig2)
+        forecast_dates = pd.date_range(df.index[-1], periods=31, freq='B')[1:]
 
-# Show forecast components
-st.subheader("Forecast Components")
-fig3 = model.plot_components(forecast)
-st.write(fig3)
+        return jsonify({
+            'forecast_dates': forecast_dates.strftime('%Y-%m-%d').tolist(),
+            'forecast_values': forecast.flatten().tolist()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# -------------------- Peaks and Troughs --------------------
+@app.route('/peaks_troughs/<ticker>', methods=['GET'])
+def peaks_troughs(ticker):
+    try:
+        df = yf.download(ticker, start='2010-01-01', end=datetime.now().strftime('%Y-%m-%d'))
+        df = df[['Close']].dropna()
+        df['Return'] = df['Close'].pct_change()
+
+        peaks = (df['Return'] > 0) & (df['Return'].shift(-1) < 0)
+        troughs = (df['Return'] < 0) & (df['Return'].shift(-1) > 0)
+
+        peak_dates = df[peaks].index
+        trough_dates = df[troughs].index
+
+        return jsonify({
+            'peak_dates': peak_dates.strftime('%Y-%m-%d').tolist(),
+            'trough_dates': trough_dates.strftime('%Y-%m-%d').tolist()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# -------------------- Main Entry Point --------------------
+if __name__ == '__main__':
+    app.run(debug=True)
