@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registration Page</title>
+<script>
+function validateForm() {
+// Get input values
+var email = document.getElementById('email').value;
+var phoneNumber = document.getElementById('phone').value;
+// Validate Email
+if (!validateEmail(email)) {
+alert('Invalid email address. Please enter a valid email.');
+return false;
+}
+// Validate Phone Number
+if (!validatePhoneNumber(phoneNumber)) {
+alert('Phone number should contain 10 digits only.');
+return false;
+}
+// Form is valid
+alert('Registration successful!');
+return true;
+}
+function validateEmail(email) {
+// Check if the email follows the standard pattern
+var regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+return regex.test(email);
+}
+function validatePhoneNumber(phoneNumber) {
+// Check if the phone number contains exactly 10 digits
+var regex = /^\d{10}$/;
+return regex.test(phoneNumber);
+}
+</script>
+<style>
+body{
+background-color: rgb(65, 119, 106);
+text-align: center;
+margin-top: 150px;
+}
+</style>
+</head>
+<body>
+<form onsubmit="return validateForm()">
+<label for="email">Email:</label>
+<input type="email" id="email" name="email" required>
+<br><br>
+<label for="phone">Phone Number:</label>
+<input type="tel" id="phone" name="phone" required>
+<br><br>
+<input type="submit" value="Register">
+</form>
+</body>
+</html>

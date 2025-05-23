@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registration Page</title>
+<script>
+function validateForm() {
+// Get input values
+var name = document.getElementById('name').value;
+var password = document.getElementById('password').value;
+// Validate Name
+if (!validateName(name)) {
+alert('Name should contain alphabets and have a minimum length of characters.');
+return false;
+}
+// Validate Password
+if (password.length < 6) {
+alert('Password should be at least 6 characters long.');
+return false;
+}
+// Form is valid
+alert('Registration successful!');
+return true;
+}
+function validateName(name) {
+// Check if the name contains only alphabets and has a minimum length of 6 characters
+var regex = /^[a-zA-Z]{6,}$/;
+return regex.test(name);
+}
+</script>
+<style>
+body{
+background-color: rgb(38, 196, 196);
+text-align: center;
+margin-top: 150px;
+}
+</style>
+</head>
+<body>
+<form onsubmit="return validateForm()">
+<label for="name">Name:</label>
+<input type="text" id="name" name="name" required>
+<br>
+<label for="password">Password:</label>
+<input type="password" id="password" name="password" required>
+<br>
+<input type="submit" value="Register">
+</form>
+</body>
+</html>
+

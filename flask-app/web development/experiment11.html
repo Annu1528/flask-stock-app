@@ -1,0 +1,64 @@
+<html>
+<head>
+<title>Form</title>
+<style>
+body{ background-color: aliceblue;}
+.btn{ margin-left: 47%;
+background-color: black;
+color:white;
+padding:4px 14px;
+font-size: 20px;
+cursor: pointer;
+font-family: 'Baloo Bhai';
+border: 2px solid white;
+border-radius: 8px;}
+.btn:hover{ background-color:black;}
+form{ margin-top: 60px;}
+.form-group input{
+text-align: center;
+display: block;
+width: 304px;
+padding: 1px;
+border: 2px solid black;
+margin: 7px auto;
+font-size: 25px;
+border-radius: 8px;
+font-family: 'Baloo Bhai';}
+</style>
+<script type = "text/javascript">
+function check() {if(document.te.Name.value == "")
+{alert("Please Provide Your Name");
+document.te.Name.focus();
+return false;}
+if(document.te.Age.value == ""){
+alert("Please Provide Your Age");
+document.te.Age.focus();
+return false;}
+34.if(document.te.Gender.value == ""){
+alert("Please Provide Your Gender");
+document.te.Gender.focus();
+return false;}
+if(document.te.Locality.value == ""){
+alert("Please Provide Your Locality");
+document.te.Locality.focus();
+return false;}
+return true;}
+</script>
+</head>
+<body >
+<h1><center>FORM</center></h1>
+<form name = "te" onsubmit = "return(check());" >
+<div class="form-group">
+<input type="text" name="Name" placeholder="Enter your name"></div>
+<div class="form-group">
+<input type="text" name="Age" placeholder="Enter your Age">
+</div>
+<div class="form-group">
+<input type="text" name="Gender" placeholder="Enter your Gender"></div>
+<div class="form-group">
+<input type="text" name="Locality" placeholder="Enter your Locality">
+</div>
+<button class="btn">submit</button>
+</form>
+</body>
+</html>

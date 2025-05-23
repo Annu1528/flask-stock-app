@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>College Website</title>
+<style>
+body {
+font-family: 'Lato', sans-serif;
+font-size: 16px;
+margin: 0;
+padding: 0;
+background-image:url("https://www.studyandgoabroad.com/wp-content/uploads/2019/01/langtravel.jpg");
+background-size:cover;
+background-repeat: no-repeat;
+background-color: #f10b0b4d;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+}
+.wrapper {
+flex: 1;
+}
+header {
+background-color: #333;
+color: #fff;
+text-align: center;
+padding: 30px;
+border-bottom: 2px solid #fff;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+h1 {
+font-family: 'Roboto', sans-serif;
+font-size: 36px;
+margin: 0;
+}
+nav ul {
+list-style-type: none;
+margin: 20px 0 0;
+padding: 0;
+}
+nav li {
+display: inline-block;
+margin-right: 40px;
+}
+nav a {
+color: #fff;
+text-decoration: none;
+font-weight: bold;
+transition: color 0.3s ease;
+}
+nav a:hover {
+color: rgb(116, 171, 216);
+text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+nav a:active{
+color: red;
+}
+.btn:visited{
+color: green;
+}
+.abc:link{
+color: bisque;
+}
+.main-content {
+max-width: 800px;
+margin: 80px auto;
+padding: 40px;
+background-color: rgba(255, 255, 255, 0.8);
+border-radius: 5px;
+box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+</style>
+</head>
+<body>
+<header>
+<nav>
+<ul>
+<li><a href="#" class="abc">Home</a></li>
+<li><a href="#">Login</a></li>
+<li><a href="#">Signup</a></li>
+<li><a href="#">Practice Tests</a></li>
+<li><a href="#">About Us</a></li>
+</ul>
+</nav>
+</header>
+<section class="main-content">
+<h2>Welcome to Talkify</h2>
+<p>transforming language learning into conversation</p>
+<a href="#" class="btn">Learn More</a>
+</section>
+</body>
+</html>

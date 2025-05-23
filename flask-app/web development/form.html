@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Form</title>
+    <style>
+        body
+        {
+            margin-left: 10%;
+            margin-top: 0.25%;
+            width: 50%;
+            height: 70%;
+            background-color: rgb(252, 200, 131); 
+        }
+        .sqr
+        {
+            background-color:pink;
+            border-radius: 30px;
+            width: 900px;
+            height: 50%;
+            margin-left: 20px;
+        }
+        .pts
+        {
+            margin-left: 20px;
+        }
+        .txt
+        {
+            font-size: x-large;
+            margin-left: 30px;
+        }
+        .des
+        {
+            margin-left: 60px;
+           
+            
+        }
+        input[name=name]
+        {
+            border-radius: 8px;
+            padding: 12px;
+            width: 33.5%;
+            background-color: rgb(253, 234, 208);
+        }
+        input[name=brt]
+        {
+            border-radius: 8px;
+            padding: 12px;
+            width: 8.75%;
+            background-color: rgb(253, 234, 208);
+        }
+        input[name=fst]
+        {
+            border-radius: 8px;
+            padding: 12px;
+            width: 15%;
+            background-color: rgb(253, 234, 208);
+        }  
+        input[name=des]
+        {
+            border-radius: 8px;
+            padding: 12px;
+            width: 50%;
+            background-color: rgb(252, 243, 232);
+        }  
+        label
+        {
+            display: inline-block;
+            width: 350px;
+            margin: 0.2cm;
+            
+        }
+        .head
+        {
+            font-size: xx-large;
+            text-align: center;
+        }
+        .button
+        {
+            
+            padding-left: 15%;
+            margin-left: 50px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .btn
+        {
+            border: none;
+            margin-left: 30px;
+            font-size: 20px;
+            border-radius: 10px;
+            width: 500px;
+            height: 35px;
+
+        }
+        .btn:hover
+        {
+            text-decoration:underline;
+            background-color: pink;
+        }
+    </style>
+</head>
+<body>
+    <div class="sqr">
+        <div class="head"><h1>Registration Form</h1></div><br>
+        <label for="name"><span class="txt" float="left">Name :</span></label><span class="box"><input type="text" name="fst" placeholder="First Name"> <input type="text" name="fst" placeholder="Last Name"></span><br><br>
+        <label><span class="txt" float="left">Password :</span></label><span class="box"><input type="password" name="name" placeholder="Password"></span><br><br>
+        <label><span class="txt" float="left">Email :</span></label><span class="box"><input type="text" name="name" placeholder="sample@example.com"></span><br><br>
+        <label><span class="txt" float="left">Sex :</span></label>
+        <span class="txt" class="pts"><input type="radio" name="Male" >Male
+        <span class="txt" class="pts"><input type="radio" name="Female" >Female<br><br>
+        <label><span class="txt" float="left">Phone Number :</span></label><span class="box"><input type="text" name="name" placeholder="+91-XXXXXXXXXX"></span><br><br>
+        <label for="name"><span class="txt" float="left">Date Of Birth :</span></label><span class="box"><input type="text" name="brt" placeholder="Date"> <input type="text" name="brt" placeholder="Month"> <input type="text" name="brt" placeholder="Year"></span><br><br>
+        <label><span class="txt" float="left">Language Known :</span></label>
+        <span class="txt" class="pts"><input type="radio" name="English" >English
+        <span class="txt" class="pts"><input type="radio" name="Telugu" >Telugu
+        <span class="txt" class="pts"><input type="radio" name="Hindi" >Hindi
+        <span class="txt" class="pts"><input type="radio" name="Tamil" >Tamil<br><br>
+        <label><span class="txt" float="left">Address :</span></label><span class="box"><input type="text" name="name"></span><br><br><br>
+        <div class="button">
+            <button class="btn">Register</button>
+        </div>
+    </div>
+</body>
+</html>

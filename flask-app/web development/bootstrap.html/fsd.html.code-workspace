@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "../../c++"
+		},
+		{
+			"path": "../../homework"
+		},
+		{
+			"path": "../../html"
+		},
+		{
+			"path": "../../New folder"
+		},
+		{
+			"path": "../../python"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "html"
+	}
+}
