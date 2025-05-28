@@ -6,3 +6,6 @@ scikit-learn
 matplotlib
 flask
 flask-cors
+joblib
+waitress
+numpy
