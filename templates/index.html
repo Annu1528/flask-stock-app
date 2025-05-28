@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAPL Stock Data and Chart</title>
+</head>
+<body>
+    <h1>AAPL Stock Data and Chart</h1>
+    <div>
+        <h2>Stock Data (First 5 Days)</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Close</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Open</th>
+                    <th>Volume</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in stock_data %}
+                <tr>
+                    <td>{{ row.Date }}</td>
+                    <td>{{ row.Close }}</td>
+                    <td>{{ row.High }}</td>
+                    <td>{{ row.Low }}</td>
+                    <td>{{ row.Open }}</td>
+                    <td>{{ row.Volume }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div>
+        <h2>Stock Price Chart</h2>
+        {{ graph_html | safe }}
+    </div>
+</body>
+</html>
