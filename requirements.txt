@@ -7,3 +7,4 @@ scikit-learn
 yfinance
 altair==5.5.0
 flask_cors
+waitress
