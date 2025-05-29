@@ -12,7 +12,9 @@ import joblib
 from waitress import serve
 
 # Load model and scaler
-lstm_model = tf.keras.models.load_model('real_stock_model.keras')
+from keras.saving.legacy import load_model
+lstm_model = load_model('real_stock_model.keras')
+
 scaler = joblib.load('scaler.save')
 
 app = Flask(__name__)
